@@ -20,21 +20,46 @@ var commandUpdate = cli.Command{
 	Flags:  flagsOfUpdate,
 }
 
+type GitPullResponse struct {
+	Path  string
+	Body  string
+	Error error
+}
+
 func doUpdate(c *cli.Context) error {
 	ghqPath := verifyGhqPath()
 	repos := searchForRepos(ghqPath)
 
-	// Listing repos
+	responses := []GitPullResponse{}
+
 	for repo := range repos {
 		printlnWithColor(repo.Path, ct.Cyan)
 		out, err := GitPull(repo.Path)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			// something wrong
+			response := GitPullResponse{
+				Path:  repo.Path,
+				Body:  "",
+				Error: err,
+			}
+			responses = append(responses, response)
+		} else {
+			if strings.Contains(out, "Already up-to-date") != true {
+				// something new arrived
+				response := GitPullResponse{
+					Path:  repo.Path,
+					Body:  out,
+					Error: nil,
+				}
+				responses = append(responses, response)
+			}
 		}
-		if strings.Contains(out, "Already up-to-date") != true {
-			fmt.Println(out)
-		}
+	}
+
+	for _, res := range responses {
+		fmt.Println(res.Path)
+		fmt.Println(res.Body)
+		fmt.Println(res.Error)
 	}
 
 	return nil
